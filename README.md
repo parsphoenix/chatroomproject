@@ -1,5 +1,26 @@
 # Chat PHP Project (chatphpproject)
 
+A sophisticated video chat and calling system using PHP and WebRTC.
+
+## Project Features:
+- **Video and Audio Calls**: Using WebRTC technology.
+- **Group Calls**: Supports group calls (Mesh Architecture).
+- **Bandwidth Management**: Automatic bitrate limiting for different qualities (240p, 360p, 480p).
+- **Admin Panel**: Manage users, messages, and system status.
+- **Light and Dark Themes**: User-selectable themes, saved in the database.
+- **Advanced Upload System**: Upload profile pictures and files in chat with size limits.
+- **Responsive Design**: Optimized display on all platforms (mobile, tablet, desktop).
+- **Multilingual System**: Supports Persian and English.
+
+## Installation:
+1. Place the project contents on your server (e.g., XAMPP).
+2. Create the database.
+3. Run the website address in your browser.
+
+## Developer:
+- **Username**: parsphoenix
+
+
 یک سیستم چت و تماس تصویری پیشرفته با استفاده از PHP و WebRTC.
 
 ## امکانات پروژه:
@@ -14,11 +35,8 @@
 
 ## نحوه نصب:
 1. محتویات پروژه را در سرور خود (مانند XAMPP) قرار دهید.
-2. دیتابیس را ایجاد کرده و اطلاعات آن را در فایل `config/db.php` (که پس از نصب ایجاد می‌شود) قرار دهید.
-3. فایل `install.php` را در مرورگر اجرا کنید.
+2. دیتابیس را ایجاد کرده.
+آدرس سایت را در مرورگر اجرا کنید.
 
 ## توسعه دهنده:
 - **Username**: parsphoenix
-
----
-توسعه یافته در محیط Trae IDE
