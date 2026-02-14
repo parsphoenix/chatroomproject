@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /config/
+Disallow: /api/
+Disallow: /install.php
+Disallow: /test.php
+Allow: /
+
+Sitemap: https://yourdomain.com/sitemap.xml

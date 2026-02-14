@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست امکانات تماس</title>
+    <link rel="stylesheet" href="assets/fonts.css">
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/chat-fixes.css">
+</head>
+<body>
+    <div class="container">
+        <h1>تست امکانات تماس صوتی و تصویری</h1>
+        
+        <div class="test-controls">
+            <button onclick="testIncomingCall()" class="btn">تست تماس ورودی</button>
+            <button onclick="testVideoCall()" class="btn">تست تماس تصویری</button>
+            <button onclick="testAudioCall()" class="btn">تست تماس صوتی</button>
+        </div>
+        
+        <div class="test-controls">
+            <button onclick="testMinimize()" class="btn secondary">کوچک کردن</button>
+            <button onclick="testMaximize()" class="btn secondary">بزرگ کردن</button>
+            <button onclick="testFullscreen()" class="btn secondary">تمام صفحه</button>
+            <button onclick="endCall()" class="btn danger">قطع تماس</button>
+        </div>
+        
+        <div class="test-controls">
+            <button onclick="simulateReject()" class="btn warning">شبیه‌سازی رد تماس</button>
+            <button onclick="simulateCallEnd()" class="btn warning">شبیه‌سازی قطع تماس</button>
+            <button onclick="testEnsureFullDisplay()" class="btn info">اطمینان از نمایش کامل</button>
+        </div>
+        
+        <div class="device-status" id="deviceStatus"></div>
+    </div>
+
+    <!-- Video Call Modal -->
+    <div id="videoCallModal" style="display: none !important; visibility: hidden !important;">
+        <div class="call-modal">
+            <h3 id="callTitle">تماس تصویری</h3>
+            <div id="callStatus" class="call-status">در حال برقراری تماس...</div>
+            
+            <div class="video-container">
+                <div class="video-wrapper">
+                    <video id="localVideo" autoplay muted></video>
+                    <div class="video-label">شما</div>
+                </div>
+                <div class="video-wrapper">
+                    <video id="remoteVideo" autoplay></video>
+                    <div class="video-label">کاربر تست</div>
+                </div>
+            </div>
+            
+            <div class="call-controls">
+                <button class="call-control-btn" onclick="toggleMute()" id="muteBtn">
+                    🎤
+                </button>
+                <button class="call-control-btn" onclick="toggleVideo()" id="videoBtn">
+                    📹
+                </button>
+                <button class="call-control-btn danger" onclick="endCall()">
+                    ❌
+                </button>
+            </div>
+            
+            <!-- قسمت چت در حین تماس -->
+            <div class="call-chat-section" id="callChatSection" style="display: none;">
+                <div class="call-chat-header">
+                    <h4>💬 چت در حین تماس</h4>
+                    <button class="toggle-chat-btn" onclick="toggleCallChat()">🔽</button>
+                </div>
+                <div class="call-chat-messages" id="callChatMessages">
+                    <!-- پیام‌ها در حین تماس -->
+                </div>
+                <div class="call-chat-input">
+                    <input type="text" id="callMessageInput" placeholder="پیام در حین تماس...">
+                    <button class="call-send-btn" onclick="sendCallMessage()">ارسال</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incoming Call Modal -->
+    <div id="incomingCallModal" class="incoming-call-overlay" style="display: none;">
+        <div class="incoming-call-modal">
+            <!-- دکمه بستن -->
+            <button class="close-incoming-call" onclick="rejectCall()" title="بستن">×</button>
+            
+            <div class="incoming-call-header">
+                <h3 id="incomingCallTitle">📞 تماس ورودی</h3>
+                <div class="call-type-indicator" id="incomingCallType">تماس تصویری</div>
+                <div class="call-duration" id="incomingCallDuration">00:00</div>
+            </div>
+            
+            <div class="caller-info">
+                <div class="caller-avatar-container">
+                    <div class="caller-avatar pulse">T</div>
+                    <div class="call-animation"></div>
+                    <div class="call-animation-2"></div>
+                </div>
+                <h4 class="caller-name">کاربر تست</h4>
+                <p class="call-status" id="incomingCallStatus">در حال تماس گیری...</p>
+                <div class="caller-status">
+                    <span class="status-indicator online"></span>
+                    <span class="status-text">آنلاین</span>
+                </div>
+            </div>
+            
+            <!-- دکمه‌های اصلی -->
+            <div class="incoming-call-controls">
+                <button class="incoming-call-btn reject-btn" onclick="rejectCall()" title="رد تماس">
+                    <span class="btn-icon">📵</span>
+                    <span class="btn-text">رد</span>
+                    <div class="btn-ripple"></div>
+                </button>
+                
+                <button class="incoming-call-btn accept-btn" onclick="acceptCall()" title="پاسخ تماس">
+                    <span class="btn-icon">📞</span>
+                    <span class="btn-text">پاسخ</span>
+                    <div class="btn-ripple"></div>
+                </button>
+            </div>
+            
+            <!-- گزینه‌های اضافی -->
+            <div class="call-options">
+                <button class="option-btn audio-only-btn" onclick="acceptCallAudioOnly()" title="پاسخ فقط با صدا">
+                    <span class="option-icon">🎤</span>
+                    <span class="option-text">فقط صدا</span>
+                </button>
+                
+                <button class="option-btn message-btn" onclick="showQuickMessage()" title="ارسال پیام سریع">
+                    <span class="option-icon">💬</span>
+                    <span class="option-text">پیام</span>
+                </button>
+                
+                <button class="option-btn remind-btn" onclick="remindLater()" title="یادآوری بعداً">
+                    <span class="option-icon">⏰</span>
+                    <span class="option-text">بعداً</span>
+                </button>
+            </div>
+            
+            <!-- پیام‌های سریع -->
+            <div class="quick-messages" id="quickMessages" style="display: none;">
+                <div class="quick-message-header">
+                    <h5>پیام سریع</h5>
+                    <button onclick="hideQuickMessage()">×</button>
+                </div>
+                <div class="quick-message-options">
+                    <button onclick="sendQuickMessage('مشغولم، بعداً تماس بگیر')">مشغولم</button>
+                    <button onclick="sendQuickMessage('الان نمی‌تونم صحبت کنم')">نمی‌تونم صحبت کنم</button>
+                    <button onclick="sendQuickMessage('5 دقیقه دیگه تماس بگیر')">5 دقیقه دیگه</button>
+                    <button onclick="sendQuickMessage('پیامک بفرست')">پیامک بفرست</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container برای نوتیفیکیشن‌ها -->
+    <div id="notificationContainer"></div>
+
+    <script src="assets/webrtc.js"></script>
+    <script>
+        // متغیر global برای تست
+        let testWebrtcManager = null;
+
+        // تست تماس ورودی
+        function testIncomingCall() {
+            if (!testWebrtcManager) {
+                testWebrtcManager = new WebRTCManager('test_user', 'current_user');
+            }
+            
+            // شبیه‌سازی دریافت offer برای تماس ورودی
+            const fakeOffer = {
+                type: 'offer',
+                sdp: 'fake-sdp-data'
+            };
+            
+            testWebrtcManager.handleOffer(JSON.stringify(fakeOffer));
+        }
+
+        // تست تماس تصویری
+        function testVideoCall() {
+            if (!testWebrtcManager) {
+                testWebrtcManager = new WebRTCManager('test_user', 'current_user');
+            }
+            
+            testWebrtcManager.startVideoCall();
+        }
+
+        // تست تماس صوتی
+        function testAudioCall() {
+            if (!testWebrtcManager) {
+                testWebrtcManager = new WebRTCManager('test_user', 'current_user');
+            }
+            
+            testWebrtcManager.startAudioCall();
+        }
+
+        // توابع کمکی برای تست
+        function acceptCall() {
+            if (testWebrtcManager) {
+                testWebrtcManager.acceptCall();
+            }
+        }
+
+        function acceptCallAudioOnly() {
+            if (testWebrtcManager) {
+                testWebrtcManager.acceptCallAudioOnly();
+            }
+        }
+
+        function rejectCall() {
+            if (testWebrtcManager) {
+                testWebrtcManager.rejectCall();
+            }
+        }
+
+        function endCall() {
+            if (testWebrtcManager) {
+                testWebrtcManager.endCall();
+            }
+        }
+
+        function toggleMute() {
+            if (testWebrtcManager) {
+                testWebrtcManager.toggleMute();
+            }
+        }
+
+        function toggleVideo() {
+            if (testWebrtcManager) {
+                testWebrtcManager.toggleVideo();
+            }
+        }
+
+        function toggleCallChat() {
+            if (testWebrtcManager) {
+                testWebrtcManager.toggleCallChat();
+            }
+        }
+
+        // تست کوچک کردن و بزرگ کردن تماس
+        function testMinimize() {
+            if (testWebrtcManager) {
+                testWebrtcManager.minimizeCall();
+            }
+        }
+
+        function testMaximize() {
+            if (testWebrtcManager) {
+                testWebrtcManager.maximizeCall();
+            }
+        }
+
+        function testFullscreen() {
+            if (testWebrtcManager) {
+                testWebrtcManager.toggleFullscreen();
+            }
+        }
+
+        // تست شبیه‌سازی رد تماس
+        function simulateReject() {
+            if (testWebrtcManager) {
+                testWebrtcManager.handleReject('declined');
+            }
+        }
+
+        // تست شبیه‌سازی قطع تماس
+        function simulateCallEnd() {
+            if (testWebrtcManager) {
+                testWebrtcManager.handleCallEnd();
+            }
+        }
+
+        // تست اطمینان از نمایش کامل
+        function testEnsureFullDisplay() {
+            if (testWebrtcManager) {
+                testWebrtcManager.ensureFullCallDisplay();
+            }
+        }
+
+        function sendCallMessage() {
+            const input = document.getElementById('callMessageInput');
+            const message = input.value.trim();
+            
+            if (message === '') return;
+            
+            // اضافه کردن پیام به چت تماس
+            addCallMessage(message, true);
+            input.value = '';
+        }
+
+        function addCallMessage(message, isSent = false) {
+            const chatMessages = document.getElementById('callChatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `call-message ${isSent ? 'sent' : 'received'}`;
+            messageDiv.textContent = message;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // شبیه‌سازی پیام‌های سریع
+        function showQuickMessage() {
+            const quickMessages = document.getElementById('quickMessages');
+            if (quickMessages) {
+                quickMessages.style.display = 'block';
+            }
+        }
+
+        function hideQuickMessage() {
+            const quickMessages = document.getElementById('quickMessages');
+            if (quickMessages) {
+                quickMessages.style.display = 'none';
+            }
+        }
+
+        function sendQuickMessage(message) {
+            alert('پیام ارسال شد: ' + message);
+            hideQuickMessage();
+            
+            // رد تماس بعد از ارسال پیام
+            setTimeout(() => {
+                rejectCall();
+            }, 500);
+        }
+
+        function remindLater() {
+            alert('پیام یادآوری ارسال شد');
+            rejectCall();
+        }
+    </script>
+
+    <style>
+        * {
+            font-family: 'Vazir', 'Tahoma', sans-serif !important;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 30px;
+        }
+
+        .test-controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-family: 'Vazir', sans-serif;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102,126,234,0.3);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+        }
+
+        .btn.secondary:hover {
+            box-shadow: 0 8px 25px rgba(66,153,225,0.3);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+        }
+
+        .btn.danger:hover {
+            box-shadow: 0 8px 25px rgba(229,62,62,0.3);
+        }
+
+        .btn.warning {
+            background: linear-gradient(135deg, #ed8936, #c05621);
+        }
+
+        .btn.warning:hover {
+            box-shadow: 0 8px 25px rgba(237,137,54,0.3);
+        }
+
+        .btn.info {
+            background: linear-gradient(135deg, #38b2ac, #2c7a7b);
+        }
+
+        .btn.info:hover {
+            box-shadow: 0 8px 25px rgba(56,178,172,0.3);
+        }
+
+        .device-status {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+</body>
+</html>
