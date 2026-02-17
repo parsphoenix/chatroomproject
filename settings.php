@@ -37,7 +37,8 @@ try {
             show_online_status,
             enable_notifications,
             theme_preference,
-            language_preference
+            language_preference,
+            preferred_bitrate
         FROM users 
         WHERE id = ?
     ");
@@ -156,6 +157,7 @@ try {
             <button class="tab-btn" onclick="switchTab('appearance')">🎨 <?= __('appearance') ?></button>
             <button class="tab-btn" onclick="switchTab('notifications')">🔔 <?= __('notifications') ?></button>
             <button class="tab-btn" onclick="switchTab('language')">🌐 <?= __('language') ?></button>
+            <button class="tab-btn" onclick="switchTab('calls')">📞 تنظیمات تماس</button>
             <button class="tab-btn" onclick="switchTab('danger')">⚠️ <?= __('danger_zone') ?></button>
         </div>
         
@@ -303,7 +305,103 @@ try {
                     </label>
                 </div>
             </div>
+            </div>
         </div>
+        
+        <!-- Call Settings -->
+        <div id="callsTab" class="tab-content">
+            <div class="settings-section">
+                <h3>📞 تنظیمات تماس</h3>
+                <p>مدیریت کیفیت و تنظیمات تماس صوتی و تصویری</p>
+                
+                <div class="form-group">
+                    <label for="bitrateRange">کیفیت تماس (بیت‌ریت):</label>
+                    <div class="range-container">
+                        <input type="range" id="bitrateRange" min="100" max="5000" step="100" 
+                               value="<?= $user['preferred_bitrate'] ?? 500 ?>">
+                        <span id="bitrateValue"><?= $user['preferred_bitrate'] ?? 500 ?> kbps</span>
+                    </div>
+                    <small>مقدار بیشتر = کیفیت بالاتر و مصرف اینترنت بیشتر</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>تست صدای زنگ:</label>
+                    <button id="testRingtoneBtn" class="btn-secondary" onclick="testRingtone()">🔔 پخش صدای زنگ</button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        let testAudio = null;
+        let testAudioCtx = null;
+        let testBeepInterval = null;
+
+        function testRingtone() {
+            // توقف پخش قبلی
+            if (testAudio || testAudioCtx) {
+                if (testAudio) {
+                    testAudio.pause();
+                    testAudio = null;
+                }
+                if (testBeepInterval) {
+                    clearInterval(testBeepInterval);
+                    testBeepInterval = null;
+                }
+                if (testAudioCtx) {
+                    testAudioCtx.close();
+                    testAudioCtx = null;
+                }
+                document.getElementById('testRingtoneBtn').textContent = '🔔 پخش صدای زنگ';
+                return;
+            }
+
+            // شروع پخش جدید
+            document.getElementById('testRingtoneBtn').textContent = '⏹ توقف';
+            testAudio = new Audio('assets/ringtone.mp3');
+            testAudio.loop = true;
+            
+            testAudio.play().then(() => {
+                console.log('Playing from file');
+            }).catch(e => {
+                console.log('File play failed, using AudioContext:', e);
+                testAudio = null; // Clear audio object
+                playTestBeep();
+            });
+        }
+
+        function playTestBeep() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) {
+                    alert('مرورگر شما از پخش صدا پشتیبانی نمی‌کند');
+                    return;
+                }
+                
+                testAudioCtx = new AudioContext();
+                
+                const playTone = () => {
+                    if (!testAudioCtx) return;
+                    const osc = testAudioCtx.createOscillator();
+                    const gain = testAudioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, testAudioCtx.currentTime); 
+                    osc.frequency.setValueAtTime(880, testAudioCtx.currentTime + 0.5);
+                    gain.gain.setValueAtTime(0.1, testAudioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, testAudioCtx.currentTime + 1);
+                    osc.connect(gain);
+                    gain.connect(testAudioCtx.destination);
+                    osc.start();
+                    osc.stop(testAudioCtx.currentTime + 1);
+                };
+
+                playTone();
+                testBeepInterval = setInterval(playTone, 1500);
+                
+            } catch (e) {
+                alert('خطا در پخش صدا: ' + e);
+            }
+        }
+        </script>
         
         <!-- Danger Zone -->
         <div id="dangerTab" class="tab-content">
@@ -328,7 +426,7 @@ try {
         <p>در حال پردازش...</p>
     </div>
     
-    <?php include 'includes/webrtc_loader.php'; ?>
+
     
     <!-- Confirmation Modal -->
     <div id="confirmModal" class="modal" style="display: none;">
@@ -342,128 +440,7 @@ try {
         </div>
     </div>
     
-    <!-- Video Call Modal - فقط هنگام تماس نمایش داده می‌شود -->
-    <div id="videoCallModal" style="display: none !important; visibility: hidden !important;">
-        <div class="call-modal">
-            <h3 id="callTitle">تماس تصویری</h3>
-            <div id="callStatus" class="call-status">در حال برقراری تماس...</div>
-            
-            <div class="video-container">
-                <div class="video-wrapper">
-                    <video id="localVideo" autoplay muted></video>
-                    <div class="video-label">شما</div>
-                </div>
-                <div class="video-wrapper">
-                    <video id="remoteVideo" autoplay></video>
-                    <div class="video-label" id="remoteVideoLabel">طرف مقابل</div>
-                </div>
-            </div>
-            
-            <div class="call-controls">
-                <button class="call-control-btn" onclick="toggleMute()" id="muteBtn">
-                    🎤
-                </button>
-                <button class="call-control-btn" onclick="toggleVideo()" id="videoBtn">
-                    📹
-                </button>
-                <button class="call-control-btn danger" onclick="endCall()">
-                    ❌
-                </button>
-            </div>
-            
-            <div id="deviceStatus" class="device-status"></div>
-            
-            <!-- قسمت چت در حین تماس -->
-            <div class="call-chat-section" id="callChatSection" style="display: none;">
-                <div class="call-chat-header">
-                    <h4>💬 چت در حین تماس</h4>
-                    <button class="toggle-chat-btn" onclick="toggleCallChat()">🔽</button>
-                </div>
-                <div class="call-chat-messages" id="callChatMessages">
-                    <!-- پیام‌ها در حین تماس -->
-                </div>
-                <div class="call-chat-input">
-                    <input type="text" id="callMessageInput" placeholder="پیام در حین تماس..." maxlength="500">
-                    <button class="call-send-btn" onclick="sendCallMessage()">ارسال</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Incoming Call Modal - بهینه شده -->
-    <div id="incomingCallModal" class="incoming-call-overlay" style="display: none;">
-        <div class="incoming-call-modal">
-            <!-- دکمه بستن -->
-            <button class="close-incoming-call" onclick="rejectCall()" title="بستن">×</button>
-            
-            <div class="incoming-call-header">
-                <h3 id="incomingCallTitle">📞 تماس ورودی</h3>
-                <div class="call-type-indicator" id="incomingCallType">تماس تصویری</div>
-                <div class="call-duration" id="incomingCallDuration">00:00</div>
-            </div>
-            
-            <div class="caller-info">
-                <div class="caller-avatar-container">
-                    <div class="caller-avatar pulse">?</div>
-                    <div class="call-animation"></div>
-                    <div class="call-animation-2"></div>
-                </div>
-                <h4 class="caller-name">کاربر ناشناس</h4>
-                <p class="call-status" id="incomingCallStatus">در حال تماس گیری...</p>
-                <div class="caller-status">
-                    <span class="status-indicator online"></span>
-                    <span class="status-text">آنلاین</span>
-                </div>
-            </div>
-            
-            <!-- دکمه‌های اصلی -->
-            <div class="incoming-call-controls">
-                <button class="incoming-call-btn reject-btn" onclick="rejectCall()" title="رد تماس">
-                    <span class="btn-icon">📵</span>
-                    <span class="btn-text">رد</span>
-                    <div class="btn-ripple"></div>
-                </button>
-                
-                <button class="incoming-call-btn accept-btn" onclick="acceptCall()" title="پاسخ تماس">
-                    <span class="btn-icon">📞</span>
-                    <span class="btn-text">پاسخ</span>
-                    <div class="btn-ripple"></div>
-                </button>
-            </div>
-            
-            <!-- گزینه‌های اضافی -->
-            <div class="call-options">
-                <button class="option-btn audio-only-btn" onclick="acceptCallAudioOnly()" title="پاسخ فقط با صدا">
-                    <span class="option-icon">🎤</span>
-                    <span class="option-text">فقط صدا</span>
-                </button>
-                
-                <button class="option-btn message-btn" onclick="showQuickMessage()" title="ارسال پیام سریع">
-                    <span class="option-icon">💬</span>
-                    <span class="option-text">پیام</span>
-                </button>
-                
-                <button class="option-btn remind-btn" onclick="remindLater()" title="یادآوری بعداً">
-                    <span class="option-icon">⏰</span>
-                    <span class="option-text">بعداً</span>
-                </button>
-            </div>
-            
-            <!-- پیام‌های سریع -->
-            <div class="quick-messages" id="quickMessages" style="display: none;">
-                <div class="quick-message-header">
-                    <h5>پیام سریع</h5>
-                    <button onclick="hideQuickMessage()">×</button>
-                </div>
-                <div class="quick-message-options">
-                    <button onclick="sendQuickMessage('مشغولم، بعداً تماس بگیر')">مشغولم</button>
-                    <button onclick="sendQuickMessage('الان نمی‌تونم صحبت کنم')">نمی‌تونم صحبت کنم</button>
-                    <button onclick="sendQuickMessage('5 دقیقه دیگه تماس بگیر')">5 دقیقه دیگه</button>
-                    <button onclick="sendQuickMessage('پیامک بفرست')">پیامک بفرست</button>
-                </div>
-            </div>
-        </div>
-    </div>
+
     
     <!-- Notification Container -->
     <div id="notificationContainer"></div>

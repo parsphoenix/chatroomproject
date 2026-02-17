@@ -16,20 +16,28 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // اگر کاربر لاگین است به dashboard برود
-if (isset($_SESSION['user_id'])) {
+require_once 'config/db.php';
+require_once 'includes/auth.php';
+
+if (checkAuth($pdo)) {
     header('Location: dashboard.php');
     exit;
 }
 
 $error = '';
+$captcha_question = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once 'config/db.php';
     
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
+    $captcha_input = trim($_POST['captcha_answer'] ?? '');
+    $expected_captcha = $_SESSION['captcha_answer'] ?? null;
     
-    if (empty($username) || empty($password)) {
+    if ($expected_captcha === null || $captcha_input === '' || intval($captcha_input) !== intval($expected_captcha)) {
+        $error = __('error_captcha');
+    } elseif (empty($username) || empty($password)) {
         $error = __('error_login_fields');
     } else {
         try {
@@ -42,6 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // ورود موفق
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
+                
+                // مدیریت "مرا به خاطر بسپار"
+                if (isset($_POST['remember_me'])) {
+                    setRememberMe($pdo, $user['id']);
+                }
                 
                 // آپدیت آخرین فعالیت
                 $stmt = $pdo->prepare("UPDATE users SET last_seen = NOW() WHERE id = ?");
@@ -57,6 +70,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !empty($error)) {
+    $a = random_int(1, 9);
+    $b = random_int(1, 9);
+    $_SESSION['captcha_answer'] = $a + $b;
+    $_SESSION['captcha_question'] = $a . ' + ' . $b;
+}
+
+$captcha_question = $_SESSION['captcha_question'] ?? '';
 ?>
 <!DOCTYPE html>
 <html dir="<?= get_direction() ?>" lang="<?= get_lang_code() ?>" data-theme="light">
@@ -125,6 +147,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="password"><?= __('password') ?>:</label>
                     <input type="password" id="password" name="password" 
                            placeholder="<?= __('enter_password') ?>" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="captcha_answer"><?= __('captcha_question') ?>: <?= htmlspecialchars($captcha_question) ?></label>
+                    <input type="text" id="captcha_answer" name="captcha_answer"
+                           placeholder="<?= __('captcha_placeholder') ?>" required>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" name="remember_me" id="remember_me">
+                        <span class="checkmark"></span>
+                        <?= __('remember_me') ?: 'مرا به خاطر بسپار' ?>
+                    </label>
                 </div>
                 
                 <button type="submit" class="auth-btn"><?= __('login') ?></button>

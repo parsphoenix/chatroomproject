@@ -23,6 +23,7 @@ if (isset($_SESSION['user_id'])) {
 
 $error = '';
 $success = '';
+$captcha_question = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once 'config/db.php';
@@ -30,9 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
+    $captcha_input = trim($_POST['captcha_answer'] ?? '');
+    $expected_captcha = $_SESSION['captcha_answer'] ?? null;
     
     // اعتبارسنجی
-    if (empty($username) || empty($password) || empty($confirm_password)) {
+    if ($expected_captcha === null || $captcha_input === '' || intval($captcha_input) !== intval($expected_captcha)) {
+        $error = __('error_captcha');
+    } elseif (empty($username) || empty($password) || empty($confirm_password)) {
         $error = __('error_all_fields');
     } elseif (strlen($username) < 3 || strlen($username) > 50) {
         $error = __('error_username_length');
@@ -64,6 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !empty($error)) {
+    $a = random_int(1, 9);
+    $b = random_int(1, 9);
+    $_SESSION['captcha_answer'] = $a + $b;
+    $_SESSION['captcha_question'] = $a . ' + ' . $b;
+}
+
+$captcha_question = $_SESSION['captcha_question'] ?? '';
 ?>
 <!DOCTYPE html>
 <html dir="<?= get_direction() ?>" lang="<?= get_lang_code() ?>" data-theme="light">
@@ -144,6 +158,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="confirm_password"><?= __('confirm_password') ?>:</label>
                         <input type="password" id="confirm_password" name="confirm_password" 
                                placeholder="<?= __('enter_confirm_password') ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="captcha_answer"><?= __('captcha_question') ?>: <?= htmlspecialchars($captcha_question) ?></label>
+                        <input type="text" id="captcha_answer" name="captcha_answer"
+                               placeholder="<?= __('captcha_placeholder') ?>" required>
                     </div>
                     
                     <button type="submit" class="auth-btn"><?= __('register') ?></button>

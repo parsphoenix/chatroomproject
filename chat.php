@@ -16,7 +16,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // چک لاگین
-if (!isset($_SESSION['user_id'])) {
+require_once 'config/db.php';
+require_once 'includes/auth.php';
+
+if (!checkAuth($pdo)) {
     header('Location: login.php');
     exit;
 }
@@ -143,8 +146,17 @@ try {
             const currentUserId = <?= $_SESSION['user_id'] ?>;
             const targetUsername = '<?= htmlspecialchars($target_user['username']) ?>';
             
+            // دریافت تنظیمات اعلان از PHP (فرض شده قبلاً دریافت شده)
+            <?php 
+                $stmt = $pdo->prepare("SELECT enable_notifications FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $userSettings = $stmt->fetch(PDO::FETCH_ASSOC);
+                $enableNotifications = $userSettings['enable_notifications'] ? 'true' : 'false';
+            ?>
+            const enableNotifications = <?= $enableNotifications ?>;
+
             // راه‌اندازی چت
-            initChat(targetUserId, currentUserId, targetUsername);
+            initChat(targetUserId, currentUserId, targetUsername, enableNotifications);
             
             // همیشه WebRTC جدید با targetUserId صحیح بساز
             // اگر قبلاً وجود داره، اول polling رو متوقف کن

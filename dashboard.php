@@ -16,12 +16,15 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // چک لاگین
-if (!isset($_SESSION['user_id'])) {
+require_once 'config/db.php';
+require_once 'includes/auth.php';
+
+// Check Auth (Session or Remember Me)
+if (!checkAuth($pdo)) {
     header('Location: login.php');
     exit;
 }
 
-require_once 'config/db.php';
 require_once 'check_ban_middleware.php';
 
 // چک ممنوعیت کاربر
@@ -142,137 +145,7 @@ try {
         </div>
     </div>
     
-    <!-- Video Call Modal - فقط هنگام تماس نمایش داده می‌شود -->
-    <div id="videoCallModal" style="display: none; visibility: hidden;">
-        <div class="call-modal">
-            <h3 id="callTitle">تماس تصویری</h3>
-            <div id="callStatus" class="call-status">در حال برقراری تماس...</div>
-            
-            <div class="video-container">
-                <div class="video-wrapper">
-                    <video id="localVideo" autoplay muted></video>
-                    <div class="video-label">شما</div>
-                </div>
-                <div class="video-wrapper">
-                    <video id="remoteVideo" autoplay></video>
-                    <div class="video-label" id="remoteVideoLabel">طرف مقابل</div>
-                </div>
-            </div>
-            
-            <div class="call-controls">
-                <button class="call-control-btn minimize-btn" onclick="if(webrtcManager) webrtcManager.toggleMinimize()" title="کوچک کردن">
-                    &#x2212;
-                </button>
-                <button class="call-control-btn" onclick="toggleMute()" id="muteBtn">
-                    🎤
-                </button>
-                <button class="call-control-btn" onclick="toggleVideo()" id="videoBtn">
-                    📹
-                </button>
-                <button class="call-control-btn danger" onclick="endCall()">
-                    ❌
-                </button>
-            </div>
-            
-            <div id="deviceStatus" class="device-status"></div>
-            
-            <!-- قسمت چت در حین تماس (در داشبورد ممکن است غیرفعال باشد) -->
-            <div class="call-chat-section" id="callChatSection" style="display: none;">
-                <div class="call-chat-header">
-                    <h4>💬 چت در حین تماس</h4>
-                    <button class="toggle-chat-btn" onclick="toggleCallChat()">🔽</button>
-                </div>
-                <div class="call-chat-messages" id="callChatMessages">
-                    <!-- پیام‌ها در حین تماس -->
-                </div>
-                <div class="call-chat-input">
-                    <input type="text" id="callMessageInput" placeholder="پیام در حین تماس..." maxlength="500">
-                    <button class="call-send-btn" onclick="sendCallMessage()">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Incoming Call Modal - بهینه شده -->
-    <div id="incomingCallModal" class="incoming-call-overlay" style="display: none;">
-        <div class="incoming-call-modal">
-            <!-- دکمه بستن -->
-            <button class="close-incoming-call" onclick="rejectCall()" title="بستن">×</button>
-            
-            <div class="incoming-call-header">
-                <h3 id="incomingCallTitle">📞 تماس ورودی</h3>
-                <div class="call-type-indicator" id="incomingCallType">تماس تصویری</div>
-                <div class="call-duration" id="incomingCallDuration">00:00</div>
-            </div>
-            
-            <div class="caller-info">
-                <div class="caller-avatar-container">
-                    <div class="caller-avatar pulse">?</div>
-                    <div class="call-animation"></div>
-                    <div class="call-animation-2"></div>
-                </div>
-                <h4 class="caller-name">کاربر ناشناس</h4>
-                <p class="call-status" id="incomingCallStatus">در حال تماس گیری...</p>
-                <div class="caller-status">
-                    <span class="status-indicator online"></span>
-                    <span class="status-text">آنلاین</span>
-                </div>
-            </div>
-            
-            <!-- دکمه‌های اصلی -->
-            <div class="incoming-call-controls">
-                <button class="incoming-call-btn reject-btn" onclick="rejectCall()" title="رد تماس">
-                    <span class="btn-icon">📵</span>
-                    <span class="btn-text">رد</span>
-                    <div class="btn-ripple"></div>
-                </button>
-                
-                <button class="incoming-call-btn accept-btn" onclick="acceptCall()" title="پاسخ تماس">
-                    <span class="btn-icon">📞</span>
-                    <span class="btn-text">پاسخ</span>
-                    <div class="btn-ripple"></div>
-                </button>
-            </div>
-            
-            <!-- گزینه‌های اضافی -->
-            <div class="call-options">
-                <button class="option-btn audio-only-btn" onclick="acceptCallAudioOnly()" title="پاسخ فقط با صدا">
-                    <span class="option-icon">🎤</span>
-                    <span class="option-text">فقط صدا</span>
-                </button>
-                
-                <button class="option-btn message-btn" onclick="showQuickMessage()" title="ارسال پیام سریع">
-                    <span class="option-icon">💬</span>
-                    <span class="option-text">پیام</span>
-                </button>
-                
-                <button class="option-btn remind-btn" onclick="remindLater()" title="یادآوری بعداً">
-                    <span class="option-icon">⏰</span>
-                    <span class="option-text">بعداً</span>
-                </button>
-            </div>
-            
-            <!-- پیام‌های سریع -->
-            <div class="quick-messages" id="quickMessages" style="display: none;">
-                <div class="quick-message-header">
-                    <h5>پیام سریع</h5>
-                    <button onclick="hideQuickMessage()">×</button>
-                </div>
-                <div class="quick-message-options">
-                    <button onclick="sendQuickMessage('مشغولم، بعداً تماس بگیر')">مشغولم</button>
-                    <button onclick="sendQuickMessage('الان نمی‌تونم صحبت کنم')">نمی‌تونم صحبت کنم</button>
-                    <button onclick="sendQuickMessage('5 دقیقه دیگه تماس بگیر')">5 دقیقه دیگه</button>
-                    <button onclick="sendQuickMessage('پیامک بفرست')">پیامک بفرست</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Notification Container -->
+    <!-- Modals are loaded via webrtc_loader.php -->
     <div id="notificationContainer"></div>
 
     <?php include 'includes/webrtc_loader.php'; ?>

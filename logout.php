@@ -6,6 +6,11 @@
 session_start();
 
 // پاک کردن session
+require_once 'config/db.php';
+require_once 'includes/auth.php';
+
+clearRememberMe($pdo);
+
 session_destroy();
 
 // حذف کوکی‌های session
